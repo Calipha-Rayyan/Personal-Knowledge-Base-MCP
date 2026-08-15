@@ -1,30 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Inter:wght@400;500;600&display=swap');
-
-:root {
-  --paper: #f6f5f1;
-  --ink: #1c2321;
-  --ink-soft: #5b645f;
-  --accent: #1f5f56;
-  --accent-dark: #143e38;
-  --line: #d8d4c8;
-  --error: #b3432b;
-}
-
 .auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--paper);
-  font-family: 'Inter', sans-serif;
-  color: var(--ink);
   padding: 24px;
 }
 
 .auth-card {
   width: 100%;
   max-width: 380px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid var(--line);
   border-top: 4px solid var(--accent);
   padding: 40px 36px;
@@ -70,7 +55,6 @@
 
 .auth-form input {
   width: 100%;
-  box-sizing: border-box;
   padding: 10px 12px;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
@@ -94,7 +78,7 @@
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #fff;
+  color: var(--white);
   background: var(--accent);
   border: none;
   border-radius: 2px;
