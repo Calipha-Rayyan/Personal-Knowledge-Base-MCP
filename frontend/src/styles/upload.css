@@ -1,0 +1,83 @@
+.upload-page {
+  min-height: 100vh;
+  padding: 48px;
+}
+
+.upload-header {
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 20px;
+}
+
+.upload-header h1 {
+  font-family: 'Lora', serif;
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+}
+
+.upload-header .subtitle {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.upload-dropzone {
+  max-width: 560px;
+  background: var(--white);
+  border: 2px dashed var(--line);
+  padding: 48px 32px;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.upload-dropzone.has-file {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.upload-dropzone p {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+}
+
+.upload-dropzone input[type="file"] {
+  display: block;
+  margin: 0 auto;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.upload-filename {
+  font-size: 13px;
+  color: var(--accent-dark);
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.upload-button {
+  margin-top: 24px;
+  padding: 12px 28px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--white);
+  background: var(--accent);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.upload-button:disabled {
+  background: var(--line);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
