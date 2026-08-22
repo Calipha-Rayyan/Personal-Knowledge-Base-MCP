@@ -1,0 +1,12 @@
+{
+  "description": "Hand-labeled test queries for retrieval evaluation. Replace example entries with real queries against your own uploaded documents.",
+  "queries": [
+    {
+      "id": "q1",
+      "query": "What are the four main principles of OOP?",
+      "expected_document": "OOP_Course_Breakup.pdf",
+      "relevant": true,
+      "notes": "Example placeholder — replace with a real query once documents are uploaded."
+    }
+  ]
+}
