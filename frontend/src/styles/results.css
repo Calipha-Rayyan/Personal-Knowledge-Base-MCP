@@ -1,0 +1,62 @@
+.results-page {
+  min-height: 100vh;
+  padding: 48px;
+}
+
+.results-header {
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 20px;
+}
+
+.results-header h1 {
+  font-family: 'Lora', serif;
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.results-header .query-echo {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.results-header .query-echo strong {
+  color: var(--accent-dark);
+}
+
+.results-list {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.result-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  padding: 20px 24px;
+}
+
+.result-card .result-source {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-dark);
+  margin-bottom: 8px;
+}
+
+.result-card .result-snippet {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+}
+
+.results-empty {
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 24px 0;
+}
