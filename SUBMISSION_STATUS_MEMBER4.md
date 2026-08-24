@@ -9,6 +9,22 @@
 \*\*Date:\*\* August 24, 2026
 
 
+## Update (Post-Submission Check)
+Shortly after this submission was prepared, a check of `main` showed that
+Member 3's backend/auth work (and Member 2's Qdrant work) has since been
+merged in via PR #11 ("feat: integrate frontend, authentication, qdrant, and
+mcp setup"). Real endpoints now exist:
+- `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
+- `POST /documents/upload`, `GET /documents`, `GET /documents/{id}`, `DELETE /documents/{id}`
+- `POST /search`
+
+The backend runs on `http://127.0.0.1:8000`, with a Vite dev proxy already
+configured in `frontend/vite.config.js` (`/api/*` → backend, prefix stripped).
+Given the submission deadline, this submission is being made as-is with the
+mock service layer, rather than rushing real integration. Real integration
+(swapping `frontend/src/services/api.js` mock functions for real `fetch()`
+calls against the endpoints above) is the immediate next step, planned for
+right after this submission.
 
 \## Summary
 
