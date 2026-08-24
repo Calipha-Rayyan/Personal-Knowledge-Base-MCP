@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../styles/auth.css'
-import { login, setToken, ApiError } from '../api/client'
+import { register, login, setToken, ApiError } from '../api/client'
 
-function Login() {
+function Register() {
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -15,11 +16,12 @@ function Login() {
     setError('')
     setLoading(true)
     try {
+      await register(username, email, password)
       const data = await login(email, password)
       setToken(data.access_token)
       navigate('/dashboard')
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Login failed. Please try again.')
+      setError(err instanceof ApiError ? err.message : 'Registration failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -29,12 +31,21 @@ function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-mark">Personal Knowledge Base</div>
-        <h1>Welcome back</h1>
-        <p className="auth-sub">Sign in to search your notes and documents.</p>
+        <h1>Create an account</h1>
+        <p className="auth-sub">Start building your personal knowledge base.</p>
 
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+
           <label htmlFor="email">Email</label>
           <input
             id="email"
@@ -51,19 +62,20 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={6}
           />
 
           <button type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Login'}
+            {loading ? 'Creating account…' : 'Register'}
           </button>
         </form>
 
         <p className="auth-switch">
-          Don't have an account? <Link to="/register">Register</Link>
+          Already have an account? <Link to="/">Login</Link>
         </p>
       </div>
     </div>
   )
 }
 
-export default Login
+export default Register

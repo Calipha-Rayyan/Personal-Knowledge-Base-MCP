@@ -1,6 +1,26 @@
-qdrant-client>=1.7.0
-sentence-transformers>=2.2.2
+# --- Web framework ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# --- Database / Auth ---
+sqlalchemy>=2.0.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt<4.1  # passlib's bcrypt backend detection breaks on bcrypt>=4.1
+python-multipart>=0.0.9
+email-validator>=2.1.0
+
+# --- Document ingestion ---
 pypdf>=3.0.0
 python-docx>=0.8.11
 python-pptx>=0.6.21
 markdown>=3.4.0
+
+# --- Embeddings / Vector search ---
+sentence-transformers>=2.2.2
+qdrant-client>=1.7.0
+
+# --- MCP ---
+fastmcp>=0.2.0

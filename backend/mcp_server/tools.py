@@ -1,19 +1,20 @@
-from .schemas import (
+from mcp_server.schemas import (
     DocumentResponse,
     SearchResponse,
     SearchResult,
     SourceInfo,
     SourcesResponse,
 )
-from backend.app.services.search_service import SearchService
+from app.services.search_service import SearchService
 
 
 class MCPTools:
     """
-    MCP tool layer.
+    MCP tool layer. Connects MCP tools to the application's single
+    SearchService implementation (app/services/search_service.py),
+    which itself calls the Qdrant-backed ingestion/processor module.
 
-    This class connects MCP tools to the application's
-    search service.
+    No duplicate Qdrant logic lives here.
     """
 
     def __init__(self, search_service: SearchService):
@@ -37,7 +38,6 @@ class MCPTools:
 
         if top_k < 1:
             top_k = 1
-
         if top_k > 20:
             top_k = 20
 

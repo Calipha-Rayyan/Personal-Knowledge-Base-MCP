@@ -68,3 +68,36 @@
   font-size: 14px;
   padding: 24px 0;
 }
+
+.documents-error {
+  max-width: 720px;
+  background: rgba(179, 67, 43, 0.08);
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-size: 13px;
+  padding: 12px 16px;
+  border-radius: 2px;
+  margin-bottom: 20px;
+}
+
+.documents-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.doc-delete {
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px solid var(--line);
+  padding: 5px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.doc-delete:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
