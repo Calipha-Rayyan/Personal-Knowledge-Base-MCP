@@ -1,12 +1,45 @@
 {
-  "description": "Hand-labeled test queries for retrieval evaluation. Replace example entries with real queries against your own uploaded documents.",
+  "description": "Hand-labeled test queries for retrieval evaluation, based on a real student-owned document: 'Zeppelin AI-GenAI Fellowship — Personal Knowledge Base MCP Server - Team Project Plan.docx'. Search is currently backed by the mock service layer; results here reflect mock behavior until Member 3's real /search endpoint is available.",
   "queries": [
     {
       "id": "q1",
-      "query": "What are the four main principles of OOP?",
-      "expected_document": "OOP_Course_Breakup.pdf",
+      "query": "What are the three MCP tools our server exposes?",
+      "expected_document": "Zeppelin AI-GenAI Fellowship — Personal Knowledge Base MCP Server - Team Project Plan.docx",
+      "expected_answer_contains": "search_notes, get_document, list_sources",
       "relevant": true,
-      "notes": "Example placeholder — replace with a real query once documents are uploaded."
+      "notes": "Real query based on Section 3 (Where MCP Comes In) of the project plan."
+    },
+    {
+      "id": "q2",
+      "query": "Is this project a chatbot or an autonomous AI agent?",
+      "expected_document": "Zeppelin AI-GenAI Fellowship — Personal Knowledge Base MCP Server - Team Project Plan.docx",
+      "expected_answer_contains": "The project is NOT a normal chatbot / We are not building an autonomous AI agent",
+      "relevant": true,
+      "notes": "Real query based on Section 1 (Project Overview)."
+    },
+    {
+      "id": "q3",
+      "query": "What vector database does the project use for storage?",
+      "expected_document": "Zeppelin AI-GenAI Fellowship — Personal Knowledge Base MCP Server - Team Project Plan.docx",
+      "expected_answer_contains": "Qdrant",
+      "relevant": true,
+      "notes": "Real query based on Section 3/4 (MCP server searches Qdrant)."
+    },
+    {
+      "id": "q4",
+      "query": "How does the system know what a search question means, not just keywords?",
+      "expected_document": "Zeppelin AI-GenAI Fellowship — Personal Knowledge Base MCP Server - Team Project Plan.docx",
+      "expected_answer_contains": "the search should understand the meaning of the question, not only exact keywords",
+      "relevant": true,
+      "notes": "Real query based on Section 2 (Simple Example)."
+    },
+    {
+      "id": "q5",
+      "query": "What is the weather forecast for tomorrow?",
+      "expected_document": null,
+      "expected_answer_contains": null,
+      "relevant": false,
+      "notes": "Negative control: unrelated query, should return no relevant results. Useful for testing false positives once real search is live."
     }
   ]
 }
