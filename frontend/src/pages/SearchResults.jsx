@@ -1,15 +1,24 @@
+import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
+import { searchDocuments } from '../services/api'
 import '../styles/results.css'
-
-const mockResults = [
-  { id: 1, source: 'OOP_Course_Breakup.pdf', snippet: 'Object-Oriented Programming is built on four key concepts: encapsulation, abstraction, inheritance, and polymorphism.' },
-  { id: 2, source: 'Data_Structures_Notes.docx', snippet: 'Classes act as blueprints for objects, bundling data and behavior together through encapsulation.' },
-]
 
 function SearchResults() {
   const [searchParams] = useSearchParams()
   const query = searchParams.get('q') || ''
-  const results = query ? mockResults : []
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!query) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    searchDocuments(query)
+      .then((res) => setResults(res))
+      .finally(() => setLoading(false))
+  }, [query])
 
   return (
     <div className="results-page">
@@ -20,7 +29,9 @@ function SearchResults() {
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {loading ? (
+        <div className="results-empty">Searching...</div>
+      ) : results.length === 0 ? (
         <div className="results-empty">
           No results found. <Link to="/search">Try another search</Link>.
         </div>

@@ -1,13 +1,16 @@
+import { useState, useEffect } from 'react'
+import { getDocuments } from '../services/api'
 import '../styles/documents.css'
 
-const mockDocuments = [
-  { id: 1, name: 'OOP_Course_Breakup.pdf', type: 'PDF', uploaded: 'Aug 12, 2026' },
-  { id: 2, name: 'Data_Structures_Notes.docx', type: 'DOCX', uploaded: 'Aug 10, 2026' },
-  { id: 3, name: 'Project_Plan.md', type: 'MD', uploaded: 'Aug 8, 2026' },
-]
-
 function MyDocuments() {
-  const documents = mockDocuments
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getDocuments()
+      .then((docs) => setDocuments(docs))
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="documents-page">
@@ -16,7 +19,9 @@ function MyDocuments() {
         <div className="subtitle">Everything you've uploaded to your knowledge base.</div>
       </div>
 
-      {documents.length === 0 ? (
+      {loading ? (
+        <div className="documents-empty">Loading your documents...</div>
+      ) : documents.length === 0 ? (
         <div className="documents-empty">You haven't uploaded any documents yet.</div>
       ) : (
         <div className="documents-list">
