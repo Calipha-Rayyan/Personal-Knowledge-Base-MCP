@@ -1,7 +1,15 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import '../styles/dashboard.css'
+import { clearToken } from '../api/client'
 
 function Dashboard() {
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    clearToken()
+    navigate('/')
+  }
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
@@ -9,6 +17,9 @@ function Dashboard() {
           <h1>Your Knowledge Base</h1>
           <div className="subtitle">Upload, browse, and search your documents.</div>
         </div>
+        <button className="logout-button" onClick={handleLogout}>
+          Log out
+        </button>
       </div>
 
       <div className="dashboard-grid">

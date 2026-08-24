@@ -1,47 +1,20 @@
 from fastmcp import FastMCP
 
-from .tools import MCPTools
-from .schemas import (
+from mcp_server.tools import MCPTools
+from mcp_server.schemas import (
     SearchResponse,
     DocumentResponse,
     SourcesResponse,
 )
+from app.services.search_service import get_search_service
 
 
-mcp = FastMCP(
-    "Personal Knowledge Base MCP"
-)
+mcp = FastMCP("Personal Knowledge Base MCP")
 
-
-# Temporary development search service.
-#
-# Member 2 will later provide the real implementation.
-class TemporarySearchService:
-    def search_notes(
-        self,
-        user_id: str,
-        query: str,
-        top_k: int = 5,
-    ):
-        return []
-
-    def get_document(
-        self,
-        user_id: str,
-        doc_id: str,
-    ):
-        return {
-            "document_id": doc_id,
-            "filename": "Not available",
-            "content": "",
-        }
-
-    def list_sources(self, user_id: str):
-        return []
-
-
-search_service = TemporarySearchService()
-tools = MCPTools(search_service)
+# Real, Qdrant-backed search service (the same one used by the FastAPI
+# /search route) — replaces the old TemporarySearchService stub that
+# always returned empty results.
+tools = MCPTools(get_search_service())
 
 
 @mcp.tool
@@ -55,7 +28,6 @@ def search_notes(
 
     Returns ranked document chunks with source information.
     """
-
     return tools.search_notes(
         user_id=user_id,
         query=query,
@@ -71,7 +43,6 @@ def get_document(
     """
     Retrieve the full content of a document belonging to the user.
     """
-
     return tools.get_document(
         user_id=user_id,
         doc_id=doc_id,
@@ -85,7 +56,6 @@ def list_sources(
     """
     List documents available in the user's personal knowledge base.
     """
-
     return tools.list_sources(
         user_id=user_id,
     )

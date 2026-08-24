@@ -3,6 +3,7 @@ from pypdf import PdfReader
 from docx import Document
 from pptx import Presentation
 
+
 def extract_text_from_pdf(file_path: str) -> str:
     reader = PdfReader(file_path)
     text = []
@@ -12,9 +13,11 @@ def extract_text_from_pdf(file_path: str) -> str:
             text.append(page_text)
     return "\n".join(text)
 
+
 def extract_text_from_docx(file_path: str) -> str:
     doc = Document(file_path)
     return "\n".join([para.text for para in doc.paragraphs])
+
 
 def extract_text_from_pptx(file_path: str) -> str:
     prs = Presentation(file_path)
@@ -25,13 +28,16 @@ def extract_text_from_pptx(file_path: str) -> str:
                 text.append(shape.text)
     return "\n".join(text)
 
+
 def extract_text_from_txt(file_path: str) -> str:
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         return f.read()
 
+
 def extract_text_from_md(file_path: str) -> str:
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         return f.read()
+
 
 def extract_text(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
@@ -39,7 +45,7 @@ def extract_text(file_path: str) -> str:
         return extract_text_from_pdf(file_path)
     elif ext == '.docx':
         return extract_text_from_docx(file_path)
-    elif ext == '.pptx':
+    elif ext in ('.pptx', '.ppt'):
         return extract_text_from_pptx(file_path)
     elif ext == '.txt':
         return extract_text_from_txt(file_path)

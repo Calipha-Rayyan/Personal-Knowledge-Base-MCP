@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from fastapi import HTTPException
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -13,7 +14,9 @@ pwd_context = CryptContext(
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # bcrypt has a hard 72-byte limit; truncate defensively rather than
+    # letting very long passwords raise at hash time.
+    return pwd_context.hash(password[:72])
 
 
 def verify_password(
@@ -21,7 +24,7 @@ def verify_password(
     hashed_password: str,
 ) -> bool:
     return pwd_context.verify(
-        plain_password,
+        plain_password[:72],
         hashed_password,
     )
 

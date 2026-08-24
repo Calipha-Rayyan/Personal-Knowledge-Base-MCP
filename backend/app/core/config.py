@@ -11,6 +11,25 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
+    # Qdrant / vector search
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+    qdrant_collection: str = "document_chunks"
+    qdrant_in_memory: bool = False  # set False once a real Qdrant server is running
+
+    # Embeddings
+    embedding_model: str = "all-MiniLM-L6-v2"
+
+    # Search
+    search_score_threshold: float = 0.3
+    search_top_k_default: int = 5
+    search_top_k_max: int = 20
+
+    # Uploads
+    upload_dir: str = "./uploads"
+    allowed_extensions: tuple = (".pdf", ".txt", ".md", ".docx", ".ppt", ".pptx")
+    max_upload_size_mb: int = 25
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
