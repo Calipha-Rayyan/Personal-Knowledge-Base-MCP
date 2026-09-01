@@ -9,9 +9,15 @@ class Embedder:
     def __init__(self, model_name: str | None = None):
         self.model_name = model_name or settings.embedding_model
         self.model = SentenceTransformer(self.model_name)
-        # NOTE: SentenceTransformer does not expose `get_embedding_dimension()`.
-        # The correct API is `get_sentence_embedding_dimension()`.
-        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        self.embedding_dim = self._get_embedding_dim()
+
+    def _get_embedding_dim(self) -> int:
+        # Newer sentence-transformers versions renamed this method; older
+        # ones only have the original name. Try both so this works
+        # regardless of which version is installed.
+        if hasattr(self.model, "get_embedding_dimension"):
+            return self.model.get_embedding_dimension()
+        return self.model.get_sentence_embedding_dimension()
 
     def embed(self, texts: List[str]) -> List[List[float]]:
         if not texts:

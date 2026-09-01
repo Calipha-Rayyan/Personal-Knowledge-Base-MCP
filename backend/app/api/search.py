@@ -12,6 +12,8 @@ router = APIRouter(tags=["Search"])
 class SearchRequest(BaseModel):
     query: str
     top_k: int = settings.search_top_k_default
+    file_type: str | None = None
+    document_id: str | None = None
 
 
 @router.post("/search")
@@ -31,16 +33,11 @@ def search(
         user_id=str(current_user.id),
         query=query,
         top_k=payload.top_k,
+        file_type=payload.file_type,
+        document_id=payload.document_id,
     )
 
     if not results:
-        return {
-            "query": query,
-            "results": [],
-            "message": "No confident match found.",
-        }
+        return {"query": query, "results": [], "message": "No confident match found."}
 
-    return {
-        "query": query,
-        "results": results,
-    }
+    return {"query": query, "results": results}

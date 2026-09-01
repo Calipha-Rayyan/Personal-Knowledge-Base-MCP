@@ -1,0 +1,46 @@
+# Render "Blueprint" — lets you deploy the backend with one click from
+# the Render dashboard by pointing it at this repo, instead of manually
+# configuring a web service through the UI.
+#
+# Free tier notes:
+# - This service sleeps after 15 minutes of inactivity and takes ~30-60s
+#   to wake up on the next request. Fine for a demo/portfolio project.
+# - Disk is ephemeral on the free tier: knowledge_base.db and any
+#   uploaded files are wiped on every redeploy. For real persistence,
+#   upgrade to a paid instance with a persistent disk, or migrate to
+#   Postgres (see README "Scaling beyond free tier").
+
+services:
+  - type: web
+    name: personal-knowledge-base-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///./knowledge_base.db
+      - key: QDRANT_HOST
+        sync: false
+      - key: QDRANT_PORT
+        value: "6333"
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_IN_MEMORY
+        value: "false"
+      - key: QDRANT_COLLECTION
+        value: document_chunks
+      - key: EMBEDDING_MODEL
+        value: multi-qa-MiniLM-L6-cos-v1
+      - key: SEARCH_SCORE_THRESHOLD
+        value: "0.3"
+      - key: FRONTEND_URL
+        sync: false
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "15"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+      - key: RESET_TOKEN_EXPIRE_MINUTES
+        value: "30"
