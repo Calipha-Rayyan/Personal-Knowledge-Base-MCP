@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -17,9 +17,16 @@ class QdrantManager:
         self.collection_name = settings.qdrant_collection
 
         if settings.qdrant_in_memory:
-            # Good for local dev / demos without a running Qdrant server.
-            # NOTE: data does not persist across process restarts in this mode.
             self.client = QdrantClient(":memory:")
+        elif settings.qdrant_api_key:
+            # Qdrant Cloud (or any auth-protected instance): connect via
+            # a full URL with API key, matching how qdrant-client expects
+            # cloud credentials to be supplied.
+            scheme = "https" if settings.qdrant_use_https else "http"
+            self.client = QdrantClient(
+                url=f"{scheme}://{settings.qdrant_host}:{settings.qdrant_port}",
+                api_key=settings.qdrant_api_key,
+            )
         else:
             self.client = QdrantClient(
                 host=settings.qdrant_host,
@@ -45,6 +52,7 @@ class QdrantManager:
         document_id: str,
         filename: str,
         chunks: List[Dict[str, Any]],
+        file_type: Optional[str] = None,
     ) -> List[str]:
         texts = [chunk["text"] for chunk in chunks]
         embeddings = self.embedder.embed(texts)
@@ -60,6 +68,7 @@ class QdrantManager:
                 "filename": filename,
                 "chunk_text": chunk["text"],
                 "chunk_index": chunk.get("index", i),
+                "file_type": file_type,
             }
             points.append(
                 PointStruct(id=point_id, vector=embeddings[i], payload=payload)
@@ -74,14 +83,24 @@ class QdrantManager:
         query_text: str,
         top_k: int = 5,
         score_threshold: float = 0.0,
+        file_type: Optional[str] = None,
+        document_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         query_vector = self.embedder.embed([query_text])[0]
 
-        # Multi-user isolation: every query is filtered to the requesting
-        # user's own points, at the Qdrant layer (not just in the API/UI).
-        filter_condition = Filter(
-            must=[FieldCondition(key="user_id", match=MatchValue(value=str(user_id)))]
-        )
+        must_conditions = [
+            FieldCondition(key="user_id", match=MatchValue(value=str(user_id)))
+        ]
+        if file_type:
+            must_conditions.append(
+                FieldCondition(key="file_type", match=MatchValue(value=file_type.lstrip(".")))
+            )
+        if document_id:
+            must_conditions.append(
+                FieldCondition(key="document_id", match=MatchValue(value=document_id))
+            )
+
+        filter_condition = Filter(must=must_conditions)
 
         response = self.client.query_points(
             collection_name=self.collection_name,
@@ -103,10 +122,7 @@ class QdrantManager:
             for res in results
         ]
 
-    def get_document_chunks(
-        self, user_id: str, document_id: str
-    ) -> List[Dict[str, Any]]:
-        """Fetch all stored chunks for one document, ordered by chunk_index."""
+    def get_document_chunks(self, user_id: str, document_id: str) -> List[Dict[str, Any]]:
         filter_condition = Filter(
             must=[
                 FieldCondition(key="user_id", match=MatchValue(value=str(user_id))),

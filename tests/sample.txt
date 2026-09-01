@@ -1,8 +1,27 @@
-I love watching the sunset at the beach.
-My favorite color is blue because it reminds me of the ocean.
-I enjoy eating pizza on Friday nights.
-Coding in Python makes me feel like a wizard.
-My cat sleeps on my keyboard when I am working.
-I want to travel to Japan to see the cherry blossoms.
-The best fruit in the world is mango.
-I exercise every morning to stay healthy.
+Personal Notes About My Interests
+
+I love watching the sunset at the beach, especially in the evening when the sky turns orange and pink. The sound of ocean waves helps me relax.
+
+My favorite color is blue because it reminds me of the ocean and the clear sky. I often choose blue for clothes, notebooks, and computer themes.
+
+I enjoy eating pizza on Friday nights. My favorite pizza toppings are chicken, mushrooms, cheese, and olives.
+
+Coding in Python makes me feel like a wizard. I use Python to build small applications, practice machine learning, automate repetitive tasks, and experiment with artificial intelligence.
+
+My cat sleeps on my keyboard when I am working. Sometimes it sits beside my laptop and watches the screen while I write code.
+
+I want to travel to Japan to see the cherry blossoms. I would especially like to visit Tokyo and Kyoto during cherry blossom season.
+
+The best fruit in the world is mango. I enjoy eating fresh mangoes during summer because they are sweet, juicy, and refreshing.
+
+I exercise every morning to stay healthy. My routine usually includes walking, stretching, and light strength exercises.
+
+I am interested in artificial intelligence and machine learning. I want to learn more about semantic search, embeddings, vector databases, and retrieval systems.
+
+I am building a personal knowledge base that can store documents and find relevant information using semantic search.
+
+Semantic search means finding information based on meaning and context rather than only matching exact keywords.
+
+Embeddings represent text as numerical vectors. Similar meanings tend to produce vectors that are close to each other in vector space.
+
+Qdrant is a vector database that can store embeddings and perform similarity searches. It can return the most relevant chunks of information for a user's query.

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
@@ -9,17 +9,6 @@ from app.models.document import Document
 
 
 class SearchService:
-    """
-    Single, real implementation of search/document/source access.
-
-    This is the ONE place that both the FastAPI `/search` route and the
-    MCP tools (search_notes / get_document / list_sources) call into, so
-    there is no second, duplicate Qdrant/search implementation.
-
-    User isolation is enforced here (and again at the Qdrant filter level
-    in qdrant_client.py) by always scoping lookups to `user_id`.
-    """
-
     def _db(self) -> Session:
         return SessionLocal()
 
@@ -28,6 +17,8 @@ class SearchService:
         user_id: str,
         query: str,
         top_k: int = 5,
+        file_type: Optional[str] = None,
+        document_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         query = (query or "").strip()
         if not query:
@@ -40,14 +31,12 @@ class SearchService:
             query=query,
             top_k=top_k,
             score_threshold=settings.search_score_threshold,
+            file_type=file_type,
+            document_id=document_id,
         )
         return raw_results
 
-    def get_document(
-        self,
-        user_id: str,
-        doc_id: str,
-    ) -> dict[str, Any]:
+    def get_document(self, user_id: str, doc_id: str) -> dict[str, Any]:
         db = self._db()
         try:
             doc = (
@@ -56,27 +45,16 @@ class SearchService:
                 .first()
             )
             if not doc:
-                return {
-                    "document_id": doc_id,
-                    "filename": "Not found",
-                    "content": "",
-                }
+                return {"document_id": doc_id, "filename": "Not found", "content": ""}
 
             chunks = get_document_chunks(user_id=user_id, document_id=doc_id)
             content = "\n\n".join(c["chunk_text"] for c in chunks)
 
-            return {
-                "document_id": doc.id,
-                "filename": doc.filename,
-                "content": content,
-            }
+            return {"document_id": doc.id, "filename": doc.filename, "content": content}
         finally:
             db.close()
 
-    def list_sources(
-        self,
-        user_id: str,
-    ) -> list[dict[str, Any]]:
+    def list_sources(self, user_id: str) -> list[dict[str, Any]]:
         db = self._db()
         try:
             docs = (
@@ -85,10 +63,7 @@ class SearchService:
                 .order_by(Document.uploaded_at.desc())
                 .all()
             )
-            return [
-                {"document_id": d.id, "filename": d.filename}
-                for d in docs
-            ]
+            return [{"document_id": d.id, "filename": d.filename} for d in docs]
         finally:
             db.close()
 
