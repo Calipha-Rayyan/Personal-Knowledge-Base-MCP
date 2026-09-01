@@ -1,5 +1,5 @@
 {
   "rootDir": "backend",
-  "buildpack": "python",
-  "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  "buildpack": "python"
+  
 }
