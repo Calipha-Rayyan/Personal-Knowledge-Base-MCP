@@ -54,76 +54,117 @@ FastAPI / FastMCP tools
 Frontend / MCP Client
 
 
-## Folder structure
+## Folder Structure
 
+```text
 personal-knowledge-base-mcp/
+│
 ├── backend/
-│ ├── app/
-│ │ ├── main.py # FastAPI app, routers, CORS, rate limiter
-│ │ ├── api/
-│ │ │ ├── auth.py # register/login/refresh/logout/forgot-reset-change password
-│ │ │ ├── documents.py # upload (background), list (paginated/filtered), get, delete
-│ │ │ ├── search.py # semantic search, with file_type/document_id filters
-│ │ │ └── health.py # /health, /health/db, /health/qdrant
-│ │ ├── core/
-│ │ │ ├── config.py # Settings (env-driven)
-│ │ │ ├── database.py # SQLAlchemy engine/session (absolute-path SQLite)
-│ │ │ ├── dependencies.py # get_current_user
-│ │ │ ├── security.py # password hashing, JWT, refresh/reset token helpers
-│ │ │ └── rate_limit.py # slowapi limiter
-│ │ ├── models/
-│ │ │ ├── user.py
-│ │ │ ├── document.py # includes status, error_message, timestamps
-│ │ │ ├── knowledge.py
-│ │ │ ├── refresh_token.py # hashed, revocable
-│ │ │ └── password_reset_token.py # hashed, single-use, expiring
-│ │ ├── ingestion/
-│ │ │ ├── loader.py # text extraction (pdf/docx/pptx/txt/md)
-│ │ │ ├── chunker.py # paragraph + sentence-aware chunking
-│ │ │ ├── embedder.py # SentenceTransformer wrapper
-│ │ │ └── processor.py # extract -> chunk -> embed -> store
-│ │ ├── database/
-│ │ │ └── qdrant_client.py # Qdrant manager, per-user filtering, payload indexes
-│ │ └── services/
-│ │ └── search_service.py # single shared search implementation
-│ ├── mcp_server/
-│ │ ├── server.py # FastMCP app + tool registration
-│ │ ├── tools.py # MCP tool layer -> SearchService
-│ │ └── schemas.py
-│ ├── alembic/ # schema migrations
-│ ├── tests/
-│ │ ├── test_api.py # auth/documents/search/isolation
-│ │ ├── test_auth_v2.py # refresh tokens, password reset, rate limiting
-│ │ ├── test_documents_v2.py # background processing, pagination, filters
-│ │ ├── test_mcp_tools.py # MCP tool layer
-│ │ └── test_mcp_live.py # live MCP smoke test against real data
-│ ├── Dockerfile
-│ ├── requirements.txt
-│ └── .env.example
+│   ├── app/
+│   │   ├── main.py
+│   │   │   └── FastAPI app, routers, CORS, rate limiter
+│   │   │
+│   │   ├── api/
+│   │   │   ├── auth.py
+│   │   │   │   └── Register, login, refresh, logout, forgot/reset/change password
+│   │   │   ├── documents.py
+│   │   │   │   └── Upload, list, get, delete documents
+│   │   │   ├── search.py
+│   │   │   │   └── Semantic search with file/document filters
+│   │   │   └── health.py
+│   │   │       └── Health checks for API, database, and Qdrant
+│   │   │
+│   │   ├── core/
+│   │   │   ├── config.py
+│   │   │   │   └── Environment-based application settings
+│   │   │   ├── database.py
+│   │   │   │   └── SQLAlchemy engine and session
+│   │   │   ├── dependencies.py
+│   │   │   │   └── Current-user dependency
+│   │   │   ├── security.py
+│   │   │   │   └── Password hashing, JWT, refresh/reset tokens
+│   │   │   └── rate_limit.py
+│   │   │       └── SlowAPI rate limiter
+│   │   │
+│   │   ├── models/
+│   │   │   ├── user.py
+│   │   │   ├── document.py
+│   │   │   ├── knowledge.py
+│   │   │   ├── refresh_token.py
+│   │   │   └── password_reset_token.py
+│   │   │
+│   │   ├── ingestion/
+│   │   │   ├── loader.py
+│   │   │   │   └── PDF, DOCX, PPTX, TXT, and Markdown extraction
+│   │   │   ├── chunker.py
+│   │   │   │   └── Paragraph and sentence-aware chunking
+│   │   │   ├── embedder.py
+│   │   │   │   └── SentenceTransformer wrapper
+│   │   │   └── processor.py
+│   │   │       └── Extract → chunk → embed → store
+│   │   │
+│   │   ├── database/
+│   │   │   └── qdrant_client.py
+│   │   │       └── Qdrant manager, user filtering, payload indexes
+│   │   │
+│   │   └── services/
+│   │       └── search_service.py
+│   │           └── Shared semantic-search implementation
+│   │
+│   ├── mcp_server/
+│   │   ├── server.py
+│   │   │   └── FastMCP app and tool registration
+│   │   ├── tools.py
+│   │   │   └── MCP tools → SearchService
+│   │   └── schemas.py
+│   │
+│   ├── alembic/
+│   │   └── Database schema migrations
+│   │
+│   ├── tests/
+│   │   ├── test_api.py
+│   │   ├── test_auth_v2.py
+│   │   ├── test_documents_v2.py
+│   │   ├── test_mcp_tools.py
+│   │   └── test_mcp_live.py
+│   │
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── .env.example
+│
 └── frontend/
-├── src/
-│ ├── api/client.js # fetch wrapper, token refresh, error handling
-│ ├── components/
-│ │ ├── Nav.jsx
-│ │ ├── Modal.jsx
-│ │ ├── Toast.jsx
-│ │ └── RequireAuth.jsx
-│ ├── pages/
-│ │ ├── Login.jsx / Register.jsx
-│ │ ├── ForgotPassword.jsx / ResetPassword.jsx
-│ │ ├── Dashboard.jsx
-│ │ ├── UploadDocuments.jsx # drag-and-drop, live status polling
-│ │ ├── MyDocuments.jsx # pagination, file-type filter, status badges
-│ │ ├── DocumentView.jsx # read a document's extracted content
-│ │ ├── Search.jsx / SearchResults.jsx
-│ │ └── Settings.jsx # change password
-│ ├── styles/
-│ ├── App.jsx
-│ └── main.jsx
-├── vercel.json
-├── index.html
-└── vite.config.js
-
+    ├── src/
+    │   ├── api/
+    │   │   └── client.js
+    │   │       └── Fetch wrapper, token refresh, error handling
+    │   │
+    │   ├── components/
+    │   │   ├── Nav.jsx
+    │   │   ├── Modal.jsx
+    │   │   ├── Toast.jsx
+    │   │   └── RequireAuth.jsx
+    │   │
+    │   ├── pages/
+    │   │   ├── Login.jsx
+    │   │   ├── Register.jsx
+    │   │   ├── ForgotPassword.jsx
+    │   │   ├── ResetPassword.jsx
+    │   │   ├── Dashboard.jsx
+    │   │   ├── UploadDocuments.jsx
+    │   │   ├── MyDocuments.jsx
+    │   │   ├── DocumentView.jsx
+    │   │   ├── Search.jsx
+    │   │   ├── SearchResults.jsx
+    │   │   └── Settings.jsx
+    │   │
+    │   ├── styles/
+    │   ├── App.jsx
+    │   └── main.jsx
+    │
+    ├── vercel.json
+    ├── index.html
+    └── vite.config.js
+```
 
 ## Installation
 
