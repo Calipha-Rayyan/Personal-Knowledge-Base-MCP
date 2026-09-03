@@ -17,29 +17,38 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
 def _process_document_background(document_id: str, tmp_path: str, user_id: str, filename: str):
+    print(f"[BG] Starting background processing for document_id={document_id}, filename={filename}")
     db = SessionLocal()
     try:
         doc = db.query(Document).filter(Document.id == document_id).first()
         if not doc:
+            print(f"[BG] ERROR: document {document_id} not found in DB, aborting")
             return
 
+        print(f"[BG] Setting status to PROCESSING for {document_id}")
         doc.status = DocumentStatus.PROCESSING
         db.commit()
+        print(f"[BG] Committed PROCESSING status for {document_id}")
 
         try:
+            print(f"[BG] Calling process_document() for {document_id}...")
             chunk_ids = process_document(
                 file_path=tmp_path,
                 user_id=user_id,
                 document_id=document_id,
                 filename=filename,
             )
+            print(f"[BG] process_document() returned {len(chunk_ids)} chunk_ids for {document_id}")
             doc.status = DocumentStatus.INDEXED
             doc.chunk_count = len(chunk_ids)
             doc.error_message = None
+            print(f"[BG] Set status to INDEXED for {document_id}")
         except ValueError as e:
+            print(f"[BG] ValueError during processing {document_id}: {e}")
             doc.status = DocumentStatus.FAILED
             doc.error_message = str(e)
         except Exception as e:
+            print(f"[BG] Exception during processing {document_id}: {type(e).__name__}: {e}")
             doc.status = DocumentStatus.FAILED
             doc.error_message = f"{type(e).__name__}: {e}"
             print("=" * 60)
@@ -48,10 +57,19 @@ def _process_document_background(document_id: str, tmp_path: str, user_id: str, 
             print("=" * 60)
 
         db.commit()
+        print(f"[BG] Final commit done for {document_id}, status={doc.status}")
+    except Exception as outer_e:
+        # Catch-all: if something fails even outside the inner try (e.g.
+        # the DB query itself, or db.commit() failing), this ensures we
+        # at least see it printed instead of the task dying silently.
+        print(f"[BG] OUTER EXCEPTION for {document_id}: {type(outer_e).__name__}: {outer_e}")
+        traceback.print_exc()
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+            print(f"[BG] Cleaned up temp file for {document_id}")
         db.close()
+        print(f"[BG] Finished background task for {document_id}")
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
@@ -105,6 +123,7 @@ def upload_document(
     db.commit()
     db.refresh(doc)
 
+    print(f"[UPLOAD] Queuing background task for document_id={document_id}")
     background_tasks.add_task(
         _process_document_background,
         document_id=document_id,
@@ -127,14 +146,10 @@ def upload_document(
 def list_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    limit: int = Query(default=20, ge=1, le=100, description="Max documents to return"),
-    offset: int = Query(default=0, ge=0, description="Number of documents to skip"),
-    file_type: str | None = Query(default=None, description="Filter by file type, e.g. 'pdf'"),
-    status_filter: str | None = Query(
-        default=None,
-        alias="status",
-        description="Filter by status: uploading, processing, indexed, failed",
-    ),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    file_type: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
 ):
     query = db.query(Document).filter(Document.user_id == current_user.id)
 
