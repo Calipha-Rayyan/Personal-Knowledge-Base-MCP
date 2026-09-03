@@ -4,7 +4,9 @@ A multi-user personal knowledge base powered by semantic search, Qdrant, FastAPI
 
 ## Overview
 
-Upload your own documents (PDF, TXT, Markdown, DOCX, PPT/PPTX), and search across them with natural-language queries using semantic (vector) search. Each user's documents and search results are fully isolated from other users. An MCP server exposes the same search capability as tools (`search_notes`, `get_document`, `list_sources`) so any MCP-compatible client (e.g. Claude Desktop) can query your knowledge base directly.
+Upload your own documents (PDF, TXT, Markdown, DOCX, PPT/PPTX), and search across them with natural-language questions using real semantic (vector) search — not keyword matching. Each user's documents and search results are fully isolated from every other user, enforced at the database and vector-store level. An MCP server exposes the same search capability as tools (`search_notes`, `get_document`, `list_sources`) so any MCP-compatible AI client (e.g. Claude Desktop) can query your knowledge base directly.
+
+The application includes production-oriented authentication (refresh tokens, password reset, rate limiting), background document processing with real status tracking, pagination, and a modern React frontend.
 
 ## Architecture
 
@@ -12,9 +14,10 @@ Upload your own documents (PDF, TXT, Markdown, DOCX, PPT/PPTX), and search acros
 flowchart TD
     U[User] --> FE[React Frontend]
     FE --> API[FastAPI Backend]
-    API --> AUTH[Authentication / JWT]
+    API --> AUTH[Authentication - JWT + Refresh Tokens]
     API --> DOCS[Document API]
-    DOCS --> SVC[Search Service]
+    DOCS --> BG[Background Processing]
+    BG --> SVC[Search Service]
     SVC --> EMB[Embeddings]
     SVC --> QD[Qdrant]
     SVC --> MCP[FastMCP Server]
@@ -24,81 +27,103 @@ flowchart TD
     T1 --> CLIENT[MCP Client]
 ```
 
-The `SearchService` (`backend/app/services/search_service.py`) is the single shared
-implementation used by both the `/search` HTTP route and the MCP tools — there is
-no duplicated Qdrant logic between the two.
+The `SearchService` (`backend/app/services/search_service.py`) is the single shared implementation used by both the `/search` HTTP route and the MCP tools — there is no duplicated Qdrant logic between the two.
 
 ## Data flow
 
-```
-Documents (PDF/TXT/MD/DOCX/PPTX)
-       ↓
+Document upload
+↓
+Metadata record created (status: uploading)
+↓
+Background task starts (request returns immediately)
+↓
 Text Extraction (loader.py)
-       ↓
-Chunking (chunker.py)
-       ↓
-Embeddings (embedder.py, all-MiniLM-L6-v2)
-       ↓
-Qdrant (per-user filtered vector store)
-       ↓
-Semantic Search (search_service.py)
-       ↓
-FastAPI  /  FastMCP tools
-       ↓
-Frontend  /  MCP Client
-```
+↓
+Chunking, paragraph/sentence-aware (chunker.py)
+↓
+Embeddings (embedder.py, multi-qa-MiniLM-L6-cos-v1)
+↓
+Qdrant (per-user filtered vector store, with payload indexes)
+↓
+status: indexed (or failed, with error_message)
+↓
+Semantic Search (search_service.py) — filterable by file type / document
+↓
+FastAPI / FastMCP tools
+↓
+Frontend / MCP Client
+
 
 ## Folder structure
 
-```
 personal-knowledge-base-mcp/
 ├── backend/
-│   ├── app/
-│   │   ├── main.py                # FastAPI app, router registration, CORS
-│   │   ├── api/
-│   │   │   ├── auth.py            # /auth/register, /auth/login, /auth/me
-│   │   │   ├── documents.py       # /documents (upload/list/get/delete)
-│   │   │   └── search.py          # /search
-│   │   ├── core/
-│   │   │   ├── config.py          # Settings (env-driven)
-│   │   │   ├── database.py        # SQLAlchemy engine/session
-│   │   │   ├── dependencies.py    # get_current_user
-│   │   │   └── security.py        # password hashing, JWT
-│   │   ├── models/
-│   │   │   ├── user.py
-│   │   │   ├── document.py
-│   │   │   └── knowledge.py
-│   │   ├── ingestion/
-│   │   │   ├── loader.py          # text extraction (pdf/docx/pptx/txt/md)
-│   │   │   ├── chunker.py         # paragraph-aware chunking
-│   │   │   ├── embedder.py        # SentenceTransformer wrapper
-│   │   │   └── processor.py       # glues extract -> chunk -> embed -> store
-│   │   ├── database/
-│   │   │   └── qdrant_client.py   # Qdrant manager, per-user filtering
-│   │   └── services/
-│   │       └── search_service.py  # single shared search implementation
-│   ├── mcp_server/
-│   │   ├── server.py              # FastMCP app + tool registration
-│   │   ├── tools.py                # MCP tool layer -> SearchService
-│   │   └── schemas.py
-│   ├── tests/
-│   │   ├── test_api.py            # auth/documents/search/isolation
-│   │   ├── test_mcp_tools.py      # MCP tool layer
-│   │   ├── test_seperate.py       # manual ingestion smoke test
-│   │   └── sample.txt
-│   ├── requirements.txt
-│   └── .env.example
+│ ├── app/
+│ │ ├── main.py # FastAPI app, routers, CORS, rate limiter
+│ │ ├── api/
+│ │ │ ├── auth.py # register/login/refresh/logout/forgot-reset-change password
+│ │ │ ├── documents.py # upload (background), list (paginated/filtered), get, delete
+│ │ │ ├── search.py # semantic search, with file_type/document_id filters
+│ │ │ └── health.py # /health, /health/db, /health/qdrant
+│ │ ├── core/
+│ │ │ ├── config.py # Settings (env-driven)
+│ │ │ ├── database.py # SQLAlchemy engine/session (absolute-path SQLite)
+│ │ │ ├── dependencies.py # get_current_user
+│ │ │ ├── security.py # password hashing, JWT, refresh/reset token helpers
+│ │ │ └── rate_limit.py # slowapi limiter
+│ │ ├── models/
+│ │ │ ├── user.py
+│ │ │ ├── document.py # includes status, error_message, timestamps
+│ │ │ ├── knowledge.py
+│ │ │ ├── refresh_token.py # hashed, revocable
+│ │ │ └── password_reset_token.py # hashed, single-use, expiring
+│ │ ├── ingestion/
+│ │ │ ├── loader.py # text extraction (pdf/docx/pptx/txt/md)
+│ │ │ ├── chunker.py # paragraph + sentence-aware chunking
+│ │ │ ├── embedder.py # SentenceTransformer wrapper
+│ │ │ └── processor.py # extract -> chunk -> embed -> store
+│ │ ├── database/
+│ │ │ └── qdrant_client.py # Qdrant manager, per-user filtering, payload indexes
+│ │ └── services/
+│ │ └── search_service.py # single shared search implementation
+│ ├── mcp_server/
+│ │ ├── server.py # FastMCP app + tool registration
+│ │ ├── tools.py # MCP tool layer -> SearchService
+│ │ └── schemas.py
+│ ├── alembic/ # schema migrations
+│ ├── tests/
+│ │ ├── test_api.py # auth/documents/search/isolation
+│ │ ├── test_auth_v2.py # refresh tokens, password reset, rate limiting
+│ │ ├── test_documents_v2.py # background processing, pagination, filters
+│ │ ├── test_mcp_tools.py # MCP tool layer
+│ │ └── test_mcp_live.py # live MCP smoke test against real data
+│ ├── Dockerfile
+│ ├── requirements.txt
+│ └── .env.example
 └── frontend/
-    ├── src/
-    │   ├── api/client.js          # backend API client (fetch + token handling)
-    │   ├── components/RequireAuth.jsx
-    │   ├── pages/                 # Login, Register, Dashboard, Upload, Documents, Search, SearchResults
-    │   ├── styles/
-    │   ├── App.jsx
-    │   └── main.jsx
-    ├── index.html
-    └── vite.config.js
-```
+├── src/
+│ ├── api/client.js # fetch wrapper, token refresh, error handling
+│ ├── components/
+│ │ ├── Nav.jsx
+│ │ ├── Modal.jsx
+│ │ ├── Toast.jsx
+│ │ └── RequireAuth.jsx
+│ ├── pages/
+│ │ ├── Login.jsx / Register.jsx
+│ │ ├── ForgotPassword.jsx / ResetPassword.jsx
+│ │ ├── Dashboard.jsx
+│ │ ├── UploadDocuments.jsx # drag-and-drop, live status polling
+│ │ ├── MyDocuments.jsx # pagination, file-type filter, status badges
+│ │ ├── DocumentView.jsx # read a document's extracted content
+│ │ ├── Search.jsx / SearchResults.jsx
+│ │ └── Settings.jsx # change password
+│ ├── styles/
+│ ├── App.jsx
+│ └── main.jsx
+├── vercel.json
+├── index.html
+└── vite.config.js
+
 
 ## Installation
 
@@ -110,6 +135,7 @@ python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env        # then edit SECRET_KEY etc.
+alembic upgrade head        # creates/updates the database schema
 ```
 
 ### Frontend
@@ -125,18 +151,24 @@ Copy `backend/.env.example` to `backend/.env` and adjust as needed. Never commit
 
 Key variables:
 - `SECRET_KEY` — set a real random secret in production.
-- `QDRANT_IN_MEMORY=true` — good for local dev/demo (no persistence across restarts). Set to `false` and configure `QDRANT_HOST`/`QDRANT_PORT` to use a real Qdrant server.
-- `SEARCH_SCORE_THRESHOLD` — minimum similarity score for a result to count as a confident match.
+- `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS` — short-lived access token (default 15 min), long-lived revocable refresh token (default 7 days).
+- `QDRANT_IN_MEMORY=true` — no persistence, good for quick local testing. `false` for a real Qdrant server (local Docker or Qdrant Cloud).
+- `QDRANT_API_KEY` / `QDRANT_USE_HTTPS` — required for Qdrant Cloud; leave blank for local Docker Qdrant (no auth).
+- `SEARCH_SCORE_THRESHOLD` — minimum similarity score for a result to count as a confident match. Chunking and the embedding model (not the threshold) are the levers to improve retrieval quality — don't lower this just to force results.
+- `FRONTEND_URL` — used to build password-reset links.
 
-## Qdrant setup (optional, for persistence)
+## Qdrant setup
 
-By default the app runs Qdrant in in-memory mode — nothing to install, but data is lost on restart. To persist data:
-
+**Local (Docker), no persistence needed for quick testing:**
 ```bash
 docker run -p 6333:6333 qdrant/qdrant
 ```
+Set `QDRANT_IN_MEMORY=false`, `QDRANT_HOST=localhost`, `QDRANT_PORT=6333`, leave `QDRANT_API_KEY` blank.
 
-Then set `QDRANT_IN_MEMORY=false` in `.env`.
+**Qdrant Cloud (free tier, for real persistence / deployment):**
+Sign up at [cloud.qdrant.io](https://cloud.qdrant.io), create a free cluster, and set `QDRANT_HOST`, `QDRANT_API_KEY`, `QDRANT_USE_HTTPS=true` from your cluster's dashboard.
+
+> Payload indexes (`user_id`, `document_id`, `file_type`) are created automatically on startup — required by Qdrant Cloud and newer Qdrant versions for filtered queries; harmless no-op if they already exist.
 
 ## Running the application
 
@@ -160,24 +192,52 @@ cd backend
 python -m mcp_server.server
 ```
 
-This starts the FastMCP server exposing `search_notes`, `get_document`, and `list_sources` for any MCP-compatible client to connect to.
+Starts the FastMCP server (`stdio` transport) exposing `search_notes`, `get_document`, and `list_sources`. To connect Claude Desktop, add to its config file:
+```json
+{
+  "mcpServers": {
+    "personal-knowledge-base": {
+      "command": "python",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "/absolute/path/to/backend"
+    }
+  }
+}
+```
 
 ## Testing
 
 ```bash
 cd backend
-pytest tests/test_api.py -v
-pytest tests/test_mcp_tools.py -v
-python tests/test_seperate.py   # manual ingestion smoke test
+pytest tests/ -v
 ```
 
-> Note: tests that perform real embedding/search download `all-MiniLM-L6-v2` from Hugging Face on first run — an internet connection is required the first time.
+Covers: authentication (register/login/refresh/logout/reset/change-password), rate limiting, document upload/background-processing/pagination/filtering, semantic search and no-confidence handling, multi-user isolation, and MCP tools.
+
+> Tests that perform real embedding/search download the embedding model from Hugging Face on first run — an internet connection is required the first time.
+
+For a live check against your real uploaded data (not test fixtures):
+```bash
+python tests/test_mcp_live.py <your_user_id>
+```
+
+## Authentication
+
+- **Access + refresh tokens**: short-lived access token (15 min) for API requests; long-lived refresh token (7 days), stored hashed and revocable in the database. The frontend silently refreshes expired access tokens without interrupting the user.
+- **Forgot / reset password**: generates a hashed, single-use, 30-minute reset token. This project has no email service configured, so the reset link is shown directly in the UI rather than emailed — documented in-code as a deliberate simplification, not a production pattern.
+- **Change password**: available from Settings; revokes all other active sessions.
+- **Rate limiting**: login (5/min), register (3/hr), forgot-password (3/hr), refresh (20/min) — per IP, via `slowapi`.
+- Login/register error messages are specific ("No account found with that email", "Incorrect password") rather than a single generic message — a deliberate trade-off documented in `auth.py`, appropriate for this project's scale but not for a large public-facing deployment (see comment in `login()`).
+
+## Document processing
+
+Uploads return immediately; extraction/chunking/embedding run as a background task. Status progresses `uploading → processing → indexed` (or `failed`, with `error_message` set). The frontend polls and updates automatically — no need to refresh manually.
 
 ## MCP tools
 
 | Tool | Description |
 |---|---|
-| `search_notes(user_id, query, top_k)` | Semantic search over the user's documents. Returns ranked chunks with filename/score, or a "No confident match found." message. |
+| `search_notes(user_id, query, top_k)` | Semantic search over the user's documents. Returns ranked chunks with filename/score, or "No confident match found." |
 | `get_document(user_id, doc_id)` | Retrieves the full reconstructed content of one document owned by the user. |
 | `list_sources(user_id)` | Lists all documents belonging to the user. |
 
@@ -186,39 +246,52 @@ python tests/test_seperate.py   # manual ingestion smoke test
 ```bash
 curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","email":"alice@example.com","password":"secret123"}'
+  -d '{"username":"alice","email":"alice@example.com","password":"Secret123!"}'
 
 curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","password":"secret123"}'
-# -> { "access_token": "...", ... }
+  -d '{"email":"alice@example.com","password":"Secret123!"}'
+# -> { "access_token": "...", "refresh_token": "...", ... }
 
 curl -X POST http://localhost:8000/documents/upload \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer <access_token>" \
   -F "file=@notes.pdf"
 
 curl -X POST http://localhost:8000/search \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the four principles of OOP?", "top_k": 5}'
+
+curl -X POST http://localhost:8000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "<refresh_token>"}'
 ```
-
-## Retrieval evaluation
-
-Hand-label queries in `backend/tests/test_queries.json` (mapping each query to its expected source document), run them against `/search`, and compute Precision@K. See `evaluation_results.md` for the results template.
 
 ## Multi-user security
 
-User isolation is enforced at multiple layers, not just the UI:
+Enforced at multiple layers, not just the UI:
 - Every document/search DB query is scoped with `WHERE user_id = <current_user>`.
-- Every Qdrant query includes a `user_id` filter condition, so vector search can never surface another user's chunks even if a document_id were guessed.
+- Every Qdrant query includes a `user_id` filter condition (backed by a payload index), so vector search can never surface another user's chunks even if a document_id were guessed.
+- Refresh and password-reset tokens are stored hashed, never plaintext.
 - `tests/test_api.py::test_user_isolation_documents_and_search` verifies this end-to-end.
+
+## Deployment (free tier)
+
+See [`DEPLOYMENT.md`](DEPLOYMENT.md) for a full step-by-step guide deploying the backend to **Render**, the frontend to **Vercel**, and Qdrant to **Qdrant Cloud** — all on free tiers. Includes known limitations (cold starts, ephemeral SQLite disk on the free tier) and the upgrade path when you outgrow them.
+
+## Known limitations / roadmap
+
+- SQLite is fine for development and light use; migrating `DATABASE_URL` to Postgres is a config change, not a rewrite, when persistence/concurrency needs grow.
+- Background processing uses FastAPI's `BackgroundTasks` (same process, not a real task queue). Fine at current scale; a real queue (Celery/RQ + Redis) is the correct next step under heavier upload volume.
+- No real email delivery yet — password reset links are shown in-UI, not emailed.
+- Rate limiting is in-memory (per-process); a multi-worker/multi-instance deployment needs a shared store (Redis) instead.
 
 ## Team contribution structure
 
 | Member | Area |
 |---|---|
-| Member 1 | MCP server / tools (`backend/mcp_server/`) |
-| Member 2 | Document processing + Qdrant (`backend/app/ingestion/`, `backend/app/database/`) |
-| Member 3 | FastAPI backend + auth (`backend/app/api/`, `backend/app/core/`) |
-| Member 4 | Frontend + testing + evaluation (`frontend/`, `backend/tests/`) |
+| Muhammad Rayyan Bhatti (Team Leader) | MCP server / tools (`backend/mcp_server/`) |
+| 
+Asfaar Maham Ghazi | Document processing + Qdrant (`backend/app/ingestion/`, `backend/app/database/`) |
+| Zain Ali Haider | FastAPI backend + auth (`backend/app/api/`, `backend/app/core/`) |
+| Huzaifa Haider Khan | Frontend + testing + evaluation (`frontend/`, `backend/tests/`) |

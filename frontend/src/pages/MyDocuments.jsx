@@ -4,7 +4,7 @@ import Nav from '../components/Nav.jsx'
 import Modal from '../components/Modal.jsx'
 import { useToast } from '../components/Toast.jsx'
 import '../styles/documents.css'
-import { listDocuments, deleteDocument, ApiError } from '../api/client'
+import { listDocuments, deleteDocument, isAuthenticated, onSessionExpired, ApiError } from '../api/client'
 
 const PAGE_SIZE = 10
 
@@ -48,8 +48,22 @@ function MyDocuments() {
   const [deleting, setDeleting] = useState(false)
   const toast = useToast()
   const pollTimer = useRef(null)
+  const stoppedRef = useRef(false)
+
+  const stopPolling = () => {
+    stoppedRef.current = true
+    clearTimeout(pollTimer.current)
+  }
 
   const loadDocuments = (isRefresh = false) => {
+    // Never fire a request when we know there's no valid session — this
+    // is what previously caused an infinite loop of 401s after logout:
+    // the poll kept rescheduling itself even with no token, forever.
+    if (!isAuthenticated()) {
+      stopPolling()
+      return Promise.resolve(null)
+    }
+
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
     setError('')
@@ -60,6 +74,13 @@ function MyDocuments() {
         return data
       })
       .catch((err) => {
+        // A 401 here means the session just died mid-poll (e.g. logged
+        // out in another tab, or the refresh token finally expired).
+        // Stop polling entirely instead of retrying into more 401s.
+        if (err instanceof ApiError && err.status === 401) {
+          stopPolling()
+          return null
+        }
         setError(err instanceof ApiError ? err.message : 'Could not load documents.')
         return null
       })
@@ -70,15 +91,26 @@ function MyDocuments() {
   }
 
   useEffect(() => {
+    stoppedRef.current = false
     loadDocuments()
-    return () => clearTimeout(pollTimer.current)
+
+    // Also stop immediately if a session-expired event fires from
+    // anywhere else in the app (e.g. another tab's request failed).
+    const unsubscribe = onSessionExpired(stopPolling)
+
+    return () => {
+      stopPolling()
+      unsubscribe()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, fileType])
 
   useEffect(() => {
     const hasInFlight = documents.some((d) => d.status === 'uploading' || d.status === 'processing')
-    if (hasInFlight) {
-      pollTimer.current = setTimeout(() => loadDocuments(), 2000)
+    if (hasInFlight && !stoppedRef.current) {
+      pollTimer.current = setTimeout(() => {
+        if (!stoppedRef.current) loadDocuments()
+      }, 2000)
     }
     return () => clearTimeout(pollTimer.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,19 +217,19 @@ function MyDocuments() {
                     <StatusBadge status={doc.status} errorMessage={doc.error_message} />
                     <span className="doc-type">{doc.file_type}</span>
                     {doc.status === 'indexed' && (
-                        <>
-                          <Link to={`/documents/${doc.document_id}`} className="doc-action-btn" title="View">
-                            👁
-                          </Link>
-                          <Link
-                            to={`/search-results?q=${encodeURIComponent(doc.filename)}`}
-                            className="doc-action-btn"
-                            title="Search this document"
-                          >
-                            ⌕
-                          </Link>
-                        </>
-                      )}
+                      <>
+                        <Link to={`/documents/${doc.document_id}`} className="doc-action-btn" title="View">
+                          👁
+                        </Link>
+                        <Link
+                          to={`/search-results?q=${encodeURIComponent(doc.filename)}`}
+                          className="doc-action-btn"
+                          title="Search this document"
+                        >
+                          ⌕
+                        </Link>
+                      </>
+                    )}
                     <button
                       className="doc-action-btn doc-action-danger"
                       onClick={() => setPendingDelete(doc)}

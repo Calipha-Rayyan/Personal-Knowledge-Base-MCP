@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Nav from '../components/Nav.jsx'
 import { useToast } from '../components/Toast.jsx'
 import '../styles/upload.css'
-import { uploadDocument, listDocuments, ApiError } from '../api/client'
+import { uploadDocument, listDocuments, isAuthenticated, onSessionExpired, ApiError } from '../api/client'
 
 const ALLOWED = ['.pdf', '.txt', '.md', '.ppt', '.pptx', '.docx']
 const MAX_MB = 25
@@ -19,13 +19,34 @@ function formatSize(bytes) {
 function UploadDocuments() {
   const [file, setFile] = useState(null)
   const [dragOver, setDragOver] = useState(false)
-  // idle | uploading | processing | success | error
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const toast = useToast()
   const pollTimer = useRef(null)
+  const stoppedRef = useRef(false)
 
-  useEffect(() => () => clearTimeout(pollTimer.current), [])
+  useEffect(() => {
+    // IMPORTANT: reset here, not just in cleanup. React 18 Strict Mode
+    // (development only) mounts every component, immediately unmounts
+    // it, then mounts it again — to surface effect bugs. The cleanup
+    // below sets stoppedRef.current = true on that first throwaway
+    // unmount; without resetting it here on (re-)mount, it stays true
+    // forever and every future poll silently no-ops on its first check,
+    // with no error and no request ever sent. This was the actual cause
+    // of uploads appearing stuck at "Processing..." indefinitely even
+    // though the backend had already finished successfully.
+    stoppedRef.current = false
+
+    const unsubscribe = onSessionExpired(() => {
+      stoppedRef.current = true
+      clearTimeout(pollTimer.current)
+    })
+    return () => {
+      stoppedRef.current = true
+      clearTimeout(pollTimer.current)
+      unsubscribe()
+    }
+  }, [])
 
   const validateAndSet = (f) => {
     if (!f) return
@@ -53,15 +74,23 @@ function UploadDocuments() {
     validateAndSet(e.dataTransfer.files[0] || null)
   }, [])
 
-  // Polls GET /documents (rather than needing a new endpoint) to find
-  // this document's current status, since the upload response only
-  // reflects the initial "uploading" state before background
-  // processing has had a chance to run.
   const pollUntilDone = (documentId, startedAt) => {
-    listDocuments()
-      .then((docs) => {
-        const doc = docs.find((d) => d.document_id === documentId)
-        if (!doc) return
+    if (stoppedRef.current || !isAuthenticated()) return
+
+    listDocuments({ limit: 100 })
+      .then((response) => {
+        if (stoppedRef.current) return
+
+        const doc = response.documents.find((d) => d.document_id === documentId)
+        if (!doc) {
+          if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+            setStatus('error')
+            setError('Could not find the uploaded document. Please check My Documents.')
+            return
+          }
+          pollTimer.current = setTimeout(() => pollUntilDone(documentId, startedAt), POLL_INTERVAL_MS)
+          return
+        }
 
         if (doc.status === 'indexed') {
           setStatus('success')
@@ -83,8 +112,14 @@ function UploadDocuments() {
 
         pollTimer.current = setTimeout(() => pollUntilDone(documentId, startedAt), POLL_INTERVAL_MS)
       })
-      .catch(() => {
-        pollTimer.current = setTimeout(() => pollUntilDone(documentId, startedAt), POLL_INTERVAL_MS)
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          stoppedRef.current = true
+          return
+        }
+        if (!stoppedRef.current) {
+          pollTimer.current = setTimeout(() => pollUntilDone(documentId, startedAt), POLL_INTERVAL_MS)
+        }
       })
   }
 
@@ -138,6 +173,11 @@ function UploadDocuments() {
             </div>
             <h2>Processing your document…</h2>
             <p>{file?.name} is being extracted, chunked, and indexed. This usually takes a few seconds.</p>
+          </div>
+        ) : status === 'error' && !file ? (
+          <div className="upload-success-card animate-scale-in">
+            <div className="upload-error" style={{ marginBottom: 20 }}>{error}</div>
+            <button className="btn-gradient upload-success-btn" onClick={reset}>Try again</button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="animate-in" style={{ animationDelay: '60ms' }}>

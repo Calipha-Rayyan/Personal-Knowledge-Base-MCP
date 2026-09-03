@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     Distance, VectorParams, PointStruct, Filter,
-    FieldCondition, MatchValue, FilterSelector
+    FieldCondition, MatchValue, FilterSelector, PayloadSchemaType
 )
 
 from app.core.config import settings
@@ -19,9 +19,6 @@ class QdrantManager:
         if settings.qdrant_in_memory:
             self.client = QdrantClient(":memory:")
         elif settings.qdrant_api_key:
-            # Qdrant Cloud (or any auth-protected instance): connect via
-            # a full URL with API key, matching how qdrant-client expects
-            # cloud credentials to be supplied.
             scheme = "https" if settings.qdrant_use_https else "http"
             self.client = QdrantClient(
                 url=f"{scheme}://{settings.qdrant_host}:{settings.qdrant_port}",
@@ -34,6 +31,7 @@ class QdrantManager:
             )
 
         self._ensure_collection()
+        self._ensure_indexes()
 
     def _ensure_collection(self):
         collections = self.client.get_collections().collections
@@ -45,6 +43,33 @@ class QdrantManager:
                     distance=Distance.COSINE
                 )
             )
+
+    def _ensure_indexes(self):
+        """
+        Newer/managed Qdrant instances (including Qdrant Cloud) require
+        an explicit payload index on any field used in a filter — unlike
+        older local Qdrant, which allowed filtering unindexed fields.
+        Creating an index that already exists is a harmless no-op, so
+        this is safe to call on every startup rather than needing a
+        one-time migration step.
+        """
+        indexed_fields = {
+            "user_id": PayloadSchemaType.KEYWORD,
+            "document_id": PayloadSchemaType.KEYWORD,
+            "file_type": PayloadSchemaType.KEYWORD,
+        }
+        for field_name, schema_type in indexed_fields.items():
+            try:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=schema_type,
+                )
+            except Exception:
+                # Index likely already exists (older qdrant-client
+                # versions raise instead of silently succeeding on a
+                # duplicate index request). Safe to ignore.
+                pass
 
     def store_chunks(
         self,
