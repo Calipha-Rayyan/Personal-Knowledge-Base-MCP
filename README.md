@@ -332,7 +332,6 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for a full step-by-step guide deploying the
 | Member | Area |
 |---|---|
 | Muhammad Rayyan Bhatti (Team Leader) | MCP server / tools (`backend/mcp_server/`) |
-| 
-Asfaar Maham Ghazi | Document processing + Qdrant (`backend/app/ingestion/`, `backend/app/database/`) |
+| Asfaar Maham Ghazi | Document processing + Qdrant (`backend/app/ingestion/`, `backend/app/database/`) |
 | Zain Ali Haider | FastAPI backend + auth (`backend/app/api/`, `backend/app/core/`) |
 | Huzaifa Haider Khan | Frontend + testing + evaluation (`frontend/`, `backend/tests/`) |
